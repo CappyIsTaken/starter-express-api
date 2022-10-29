@@ -35,7 +35,8 @@ app.get('/uploads/:fileName', async (req,res) => {
         fileName: filename,
         responseType: "arraybuffer"
     })
-    res.status(200).set("Content-Type", file.headers["Content-Type"]).send(file.data)
+    console.log(file.headers)
+    res.status(200).set("Content-Type", file.headers["content-type"]).send(file.data)
   } catch (error) {
     if (error.code === 'NoSuchKey') {
       console.log(`No such key ${filename}`)
