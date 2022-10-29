@@ -25,8 +25,7 @@ app.get('/uploads/:fileName', async (req,res) => {
     }).promise()
     console.log(s3File.ContentType)
     res.set('Content-type', s3File.ContentType)
-    res.status(200)
-    s3File.Body.pipe(res)
+    res.status(200).send(s3File.Body)
   } catch (error) {
     if (error.code === 'NoSuchKey') {
       console.log(`No such key ${filename}`)
@@ -49,6 +48,7 @@ app.post("/upload", async (req, res) => {
         Body: file.data,
         Bucket: process.env.BUCKET,
         Key: file.name,
+        ContentType: file.mimetype
     }).promise()
     res.status(200).send({
         url: `https://easy-erin-fawn-ring.cyclic.app/uploads/${file.name}`
