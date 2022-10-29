@@ -3,8 +3,14 @@ const app = express()
 const AWS = require("aws-sdk");
 const s3 = new AWS.S3()
 const bodyParser = require('body-parser');
+const fileUpload = require('express-fileupload');
+
 
 app.use(bodyParser.json())
+app.use(fileUpload({
+    createParentPath: true
+}))
+
 app.set("views", "./views")
 app.set("view engine", "ejs")
 
@@ -33,6 +39,19 @@ app.get('/uploads/:fileName', async (req,res) => {
 
 app.get("/upload", (req, res) => {
     res.render("upload")
+})
+
+app.post("/upload", async (req, res) => {
+    const file = req.files.thefile
+    if(!file) return res.status(400).send("No file found!")
+    await s3.putObject({
+        Body: file.data,
+        Bucket: process.env.BUCKET,
+        Key: file.name,
+    }).promise()
+    res.status(200).send({
+        url: `https://easy-erin-fawn-ring.cyclic.app/uploads/${file.name}`
+    })
 })
 
 
