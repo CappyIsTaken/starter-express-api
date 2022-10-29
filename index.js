@@ -5,10 +5,12 @@ const s3 = new AWS.S3()
 const bodyParser = require('body-parser');
 
 app.use(bodyParser.json())
+app.set("views", "./views")
+app.set("view engine", "ejs")
 
 // curl -i https://some-app.cyclic.app/myFile.txt
-app.get('*', async (req,res) => {
-  let filename = req.path.slice(1)
+app.get('/uploads/:fileName', async (req,res) => {
+  let filename = req.params.fileName
 
   try {
     let s3File = await s3.getObject({
@@ -27,6 +29,10 @@ app.get('*', async (req,res) => {
       res.sendStatus(500).end()
     }
   }
+})
+
+app.get("/upload", (req, res) => {
+    res.render("upload")
 })
 
 
