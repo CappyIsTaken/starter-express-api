@@ -3,8 +3,13 @@ const app = express()
 const AWS = require("aws-sdk");
 const s3 = new AWS.S3()
 const bodyParser = require('body-parser');
-const fileUpload = require('express-fileupload');
+const multer = require("multer")
 require("dotenv").config()
+var cors = require('cors')
+
+const upload = multer({
+
+})
 
 const B2 = require('backblaze-b2');
 
@@ -13,11 +18,11 @@ const b2 = new B2({
   applicationKey: process.env.APPKEY
 });
 
+app.use(cors())
+
+
 
 app.use(bodyParser.json())
-app.use(fileUpload({
-    createParentPath: true
-}))
 
 app.set("views", "./views")
 app.set("view engine", "ejs")
@@ -52,9 +57,9 @@ app.get("/upload", (req, res) => {
     res.render("upload")
 })
 
-app.post("/upload", async (req, res) => {
+app.post("/upload", upload.single("thefile"), async (req, res) => {
     await b2.authorize()
-    const file = req.files.thefile
+    const file = req.file
     if(!file) return res.status(400).send("No file found!")
     const uploadURLData = await b2.getUploadUrl({
         bucketId: process.env.B2_BUCKET
@@ -62,12 +67,12 @@ app.post("/upload", async (req, res) => {
     await b2.uploadFile({
         uploadUrl: uploadURLData.data.uploadUrl,
         uploadAuthToken: uploadURLData.data.authorizationToken,
-        fileName: file.name,
+        fileName: file.originalname,
         mime: file.mimetype,
-        data: file.data
+        data: file.buffer
     })
     res.status(200).send({
-        url: `https://easy-erin-fawn-ring.cyclic.app/uploads/${file.name}`
+        url: `https://easy-erin-fawn-ring.cyclic.app/uploads/${file.originalname}`
     })
 })
 

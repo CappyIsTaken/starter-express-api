@@ -1,5 +1,24 @@
 <h1 style="font-family: Roboto">THE YIFF STASH UPLOADER</h1>
-<form action="/upload" enctype="multipart/form-data" method="post">
+<form action="/upload" enctype="multipart/form-data" method="post" id="upload-form">
     <input type="file" id="myFile" name="thefile">
-    <input type="submit">
+    <input type="submit" id="submit">
+    
 </form>
+<a id="text"></i><a id="url"></a>
+
+<script src="https://cdn.jsdelivr.net/npm/axios@1.1.2/dist/axios.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+<script>
+
+$("#upload-form").submit(async function (event) {
+    event.preventDefault();
+    const resp = await axios.postForm('/upload/', {
+        'thefile': document.querySelector('#myFile').files[0]
+    });
+    document.querySelector("#text").innerHTML = `URL: `
+    document.querySelector("#url").innerHTML = resp.data.url
+    document.querySelector("#url").setAttribute("href", resp.data.url)
+    
+    return false;
+});
+</script>
