@@ -70,35 +70,10 @@ app.post("/upload", async (req, res) => {
     })
 })
 
-
-// curl -i -XPUT --data '{"k1":"value 1", "k2": "value 2"}' -H 'Content-type: application/json' https://some-app.cyclic.app/myFile.txt
-app.put('*', async (req,res) => {
-  let filename = req.path.slice(1)
-
-  console.log(typeof req.body)
-
-  await s3.putObject({
-    Body: JSON.stringify(req.body),
-    Bucket: process.env.BUCKET,
-    Key: filename,
-  }).promise()
-
-  res.set('Content-type', 'text/plain')
-  res.send('ok').end()
+app.get("/", (req, res) => {
+    res.redirect("/upload")
 })
 
-// curl -i -XDELETE https://some-app.cyclic.app/myFile.txt
-app.delete('*', async (req,res) => {
-  let filename = req.path.slice(1)
-
-  await s3.deleteObject({
-    Bucket: process.env.BUCKET,
-    Key: filename,
-  }).promise()
-
-  res.set('Content-type', 'text/plain')
-  res.send('ok').end()
-})
 
 // /////////////////////////////////////////////////////////////////////////////
 // Catch all handler for all other request.
