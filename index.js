@@ -38,7 +38,7 @@ app.get('/uploads/:fileName', async (req,res) => {
     console.log(file.headers)
     res.status(200).set("Content-Type", file.headers["content-type"]).send(file.data)
   } catch (error) {
-    if (error.status == 404) {
+    if (error.response.status == 404) {
       console.log(`No such key ${filename}`)
       res.sendStatus(404).end()
     } else {
