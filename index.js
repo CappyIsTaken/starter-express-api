@@ -4,6 +4,14 @@ const AWS = require("aws-sdk");
 const s3 = new AWS.S3()
 const bodyParser = require('body-parser');
 const fileUpload = require('express-fileupload');
+require("dotenv").config()
+
+const B2 = require('backblaze-b2');
+
+const b2 = new B2({
+  applicationKeyId: process.env.APPKEYID, 
+  applicationKey: process.env.APPKEY
+});
 
 
 app.use(bodyParser.json())
@@ -18,14 +26,16 @@ app.set("view engine", "ejs")
 app.get('/uploads/:fileName', async (req,res) => {
   let filename = req.params.fileName
 
+  await b2.authorize()
+
+
   try {
-    let s3File = await s3.getObject({
-      Bucket: process.env.BUCKET,
-      Key: filename,
-    }).promise()
-    console.log(s3File.ContentType)
-    res.set('Content-type', s3File.ContentType)
-    res.status(200).send(s3File.Body)
+    let file = await b2.downloadFileByName({
+        bucketName: "TheYiffStash",
+        fileName: filename,
+        responseType: "arraybuffer"
+    })
+    res.status(200).send(file.data)
   } catch (error) {
     if (error.code === 'NoSuchKey') {
       console.log(`No such key ${filename}`)
@@ -42,14 +52,19 @@ app.get("/upload", (req, res) => {
 })
 
 app.post("/upload", async (req, res) => {
+    await b2.authorize()
     const file = req.files.thefile
     if(!file) return res.status(400).send("No file found!")
-    await s3.putObject({
-        Body: file.data,
-        Bucket: process.env.BUCKET,
-        Key: file.name,
-        ContentType: file.mimetype
-    }).promise()
+    const uploadURLData = await b2.getUploadUrl({
+        bucketId: process.env.B2_BUCKET
+    })
+    await b2.uploadFile({
+        uploadUrl: uploadURLData.data.uploadUrl,
+        uploadAuthToken: uploadURLData.data.authorizationToken,
+        fileName: file.name,
+        mime: file.mimetype,
+        data: file.data
+    })
     res.status(200).send({
         url: `https://easy-erin-fawn-ring.cyclic.app/uploads/${file.name}`
     })
@@ -93,7 +108,7 @@ app.use('*', (req,res) => {
 
 // /////////////////////////////////////////////////////////////////////////////
 // Start the server
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 5000
 app.listen(port, () => {
   console.log(`index.js listening at http://localhost:${port}`)
 })
