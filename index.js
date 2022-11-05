@@ -1,24 +1,43 @@
 const express = require('express')
 const app = express()
-const AWS = require("aws-sdk");
-const s3 = new AWS.S3()
+const http = require("http").createServer(app)
+
 const bodyParser = require('body-parser');
 const multer = require("multer")
 require("dotenv").config()
-var cors = require('cors')
 
-const upload = multer({
 
+const {S3Client, PutObjectCommand} = require("@aws-sdk/client-s3")
+
+
+const REGION = "us-west-004"
+
+
+
+const b2 = new S3Client({
+    endpoint: `https://s3.${REGION}.backblazeb2.com`,
+    region: REGION,
+    credentials: {
+      // Must have both read and write permissions on BUCKET_NAME
+      accessKeyId: process.env.APPKEYID,
+      secretAccessKey: process.env.APPKEY,
+    },
 })
 
-const B2 = require('backblaze-b2');
+console.log(process.env.APPKEY, process.env.APPKEYID)
 
-const b2 = new B2({
-  applicationKeyId: process.env.APPKEYID, 
-  applicationKey: process.env.APPKEY
-});
+
+
+var cors = require('cors')
+const {v4: uuidv4, v4} = require("uuid")
+
+const upload = multer({})
+
+
+
 
 app.use(cors())
+
 
 
 
@@ -58,22 +77,23 @@ app.get("/upload", (req, res) => {
 })
 
 app.post("/upload", upload.single("thefile"), async (req, res) => {
-    await b2.authorize()
-    const file = req.file
-    if(!file) return res.status(400).send("No file found!")
-    const uploadURLData = await b2.getUploadUrl({
-        bucketId: process.env.B2_BUCKET
+
+  const {file} = req
+
+  if(!file) return res.status(400).send({
+    message: "File wasn't found!"
+  })
+  await b2.send(
+    new PutObjectCommand({
+      Bucket: "TheNest",
+      Key: file.originalname,
+      Body: file.buffer,
+      ContentType: file.mimetype,
     })
-    await b2.uploadFile({
-        uploadUrl: uploadURLData.data.uploadUrl,
-        uploadAuthToken: uploadURLData.data.authorizationToken,
-        fileName: file.originalname,
-        mime: file.mimetype,
-        data: file.buffer
-    })
-    res.status(200).send({
-        url: `https://easy-erin-fawn-ring.cyclic.app/uploads/${file.originalname}`
-    })
+  )
+  res.status(200).send({
+    url: `https://thenest.s3.us-west-004.backblazeb2.com/${file.originalname}`
+  })
 })
 
 app.get("/", (req, res) => {
@@ -87,9 +107,15 @@ app.use('*', (req,res) => {
   res.sendStatus(404).end()
 })
 
+
+
+
+
+
+
 // /////////////////////////////////////////////////////////////////////////////
 // Start the server
 const port = process.env.PORT || 5000
-app.listen(port, () => {
+http.listen(port, () => {
   console.log(`index.js listening at http://localhost:${port}`)
 })
