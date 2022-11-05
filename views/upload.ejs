@@ -35,8 +35,7 @@ $("#upload-form").submit(async function (event) {
 
 
     const resp = await axios.postForm('/upload/', {
-        'thefile': document.querySelector('#myFile').files[0],
-        "r": roomId
+        'thefile': document.querySelector('#myFile').files[0]
     });
     text.innerHTML = `URL: `
     url.innerHTML = resp.data.url

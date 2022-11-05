@@ -7,7 +7,7 @@ const multer = require("multer")
 require("dotenv").config()
 
 
-const {S3Client, PutObjectCommand} = require("@aws-sdk/client-s3")
+const {S3Client, PutObjectCommand, GetObjectCommand} = require("@aws-sdk/client-s3")
 
 
 const REGION = "us-west-004"
@@ -50,24 +50,19 @@ app.set("view engine", "ejs")
 app.get('/uploads/:fileName', async (req,res) => {
   let filename = req.params.fileName
 
-  await b2.authorize()
-
-
   try {
-    let file = await b2.downloadFileByName({
-        bucketName: "TheYiffStash",
-        fileName: filename,
-        responseType: "arraybuffer"
-    })
-    console.log(file.headers)
-    res.status(200).set("Content-Type", file.headers["content-type"]).send(file.data)
+    const resp = await b2.send(new GetObjectCommand({
+      Bucket: "TheNest",
+      Key: filename,
+    }))
+    res.type(resp.ContentType)
+    resp.Body.pipe(res)
   } catch (error) {
-    if (error.response.status == 404) {
-      console.log(`No such key ${filename}`)
-      res.sendStatus(404).end()
+    if(error.code == "NoSuchKey") {
+      res.status(404).end()
     } else {
-      console.log(error)
-      res.sendStatus(500).end()
+      console.error(error)
+      res.status(500).end()
     }
   }
 })
@@ -92,7 +87,7 @@ app.post("/upload", upload.single("thefile"), async (req, res) => {
     })
   )
   res.status(200).send({
-    url: `https://thenest.s3.us-west-004.backblazeb2.com/${file.originalname}`
+    url: `https://${req.hostname}/uploads/${file.originalname}`
   })
 })
 
