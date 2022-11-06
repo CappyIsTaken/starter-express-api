@@ -94,7 +94,7 @@ app.get("/upload", (req,res) => {
 
 app.get("/uploads", expressBasicAuth({
   users: {
-    cappy: "cinno"
+    [process.env.USERNAME]: process.env.PASSWORD
   },
   challenge: true,
   unauthorizedResponse: (req) => {
