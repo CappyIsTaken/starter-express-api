@@ -13,15 +13,6 @@
 
 const socket = io()
 
-let roomId
-
-socket.on("r", (id) => {
-    roomId = id
-})
-
-socket.on("progress", (progress) => {
-    text.innerHTML = `${progress}% done!`
-})
 
 
 $("#upload-form").submit(async function (event) {

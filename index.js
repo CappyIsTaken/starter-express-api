@@ -6,13 +6,13 @@ const bodyParser = require('body-parser');
 const multer = require("multer")
 require("dotenv").config()
 
+const expressBasicAuth = require("express-basic-auth")
 
-const {S3Client, PutObjectCommand, GetObjectCommand} = require("@aws-sdk/client-s3")
+
+const {S3Client, PutObjectCommand, GetObjectCommand, ListObjectsCommand} = require("@aws-sdk/client-s3")
 
 
 const REGION = "us-west-004"
-
-
 
 const b2 = new S3Client({
     endpoint: `https://s3.${REGION}.backblazeb2.com`,
@@ -24,29 +24,24 @@ const b2 = new S3Client({
     },
 })
 
-console.log(process.env.APPKEY, process.env.APPKEYID)
-
-
-
 var cors = require('cors')
-const {v4: uuidv4, v4} = require("uuid")
-
 const upload = multer({})
 
-
-
-
 app.use(cors())
-
-
-
-
 app.use(bodyParser.json())
 
 app.set("views", "./views")
 app.set("view engine", "ejs")
 
-// curl -i https://some-app.cyclic.app/myFile.txt
+const streamToString = (stream) =>
+    new Promise((resolve, reject) => {
+      const chunks = [];
+      stream.on("data", (chunk) => chunks.push(chunk));
+      stream.on("error", reject);
+      stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    });
+
+
 app.get('/uploads/:fileName', async (req,res) => {
   let filename = req.params.fileName
 
@@ -67,9 +62,7 @@ app.get('/uploads/:fileName', async (req,res) => {
   }
 })
 
-app.get("/upload", (req, res) => {
-    res.render("upload")
-})
+ 
 
 app.post("/upload", upload.single("thefile"), async (req, res) => {
 
@@ -94,6 +87,28 @@ app.post("/upload", upload.single("thefile"), async (req, res) => {
 app.get("/", (req, res) => {
     res.redirect("/upload")
 })
+
+app.get("/upload", (req,res) => {
+  res.sendFile(__dirname+"/views/upload.html")
+})
+
+app.get("/uploads", expressBasicAuth({
+  users: {
+    cappy: "cinno"
+  },
+  challenge: true,
+  unauthorizedResponse: (req) => {
+    return "Authorization is required!"
+  }
+}), async (req, res) => {
+  const resp = await b2.send(new ListObjectsCommand({
+    Bucket: "TheNest",
+    Delimiter: "/",
+  }))
+  res.send(resp.Contents)
+})
+
+
 
 
 // /////////////////////////////////////////////////////////////////////////////
