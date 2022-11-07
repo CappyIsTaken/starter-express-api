@@ -9,13 +9,15 @@ require("dotenv").config()
 const expressBasicAuth = require("express-basic-auth")
 
 
-const {S3Client, PutObjectCommand, GetObjectCommand, ListObjectsCommand} = require("@aws-sdk/client-s3")
+const {S3} = require("aws-sdk")
+
+const REGION = process.env.REGION
+const BUCKET = process.env.BUCKET
 
 
-const REGION = "us-west-004"
 
-const b2 = new S3Client({
-    endpoint: `https://s3.${REGION}.backblazeb2.com`,
+const b2 = new S3({
+  endpoint: `https://s3.${REGION}.backblazeb2.com`,
     region: REGION,
     credentials: {
       // Must have both read and write permissions on BUCKET_NAME
@@ -23,7 +25,6 @@ const b2 = new S3Client({
       secretAccessKey: process.env.APPKEY,
     },
 })
-
 var cors = require('cors')
 const upload = multer({})
 
@@ -33,25 +34,17 @@ app.use(bodyParser.json())
 app.set("views", "./views")
 app.set("view engine", "ejs")
 
-const streamToString = (stream) =>
-    new Promise((resolve, reject) => {
-      const chunks = [];
-      stream.on("data", (chunk) => chunks.push(chunk));
-      stream.on("error", reject);
-      stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    });
 
 
 app.get('/uploads/:fileName', async (req,res) => {
   let filename = req.params.fileName
 
   try {
-    const resp = await b2.send(new GetObjectCommand({
-      Bucket: "TheNest",
-      Key: filename,
-    }))
-    res.type(resp.ContentType)
-    resp.Body.pipe(res)
+    const s3File = await b2.getObject({
+      Bucket: BUCKET,
+      Key: filename}).promise()
+    res.type(s3File.ContentType)
+    res.status(200).send(s3File.Body)
   } catch (error) {
     if(error.code == "NoSuchKey") {
       res.status(404).end()
@@ -71,14 +64,12 @@ app.post("/upload", upload.single("thefile"), async (req, res) => {
   if(!file) return res.status(400).send({
     message: "File wasn't found!"
   })
-  await b2.send(
-    new PutObjectCommand({
-      Bucket: "TheNest",
+  await b2.putObject({
+      Bucket: BUCKET,
       Key: file.originalname,
       Body: file.buffer,
       ContentType: file.mimetype,
-    })
-  )
+  }).promise()
   res.status(200).send({
     url: `https://${req.hostname}/uploads/${file.originalname}`
   })
@@ -92,20 +83,12 @@ app.get("/upload", (req,res) => {
   res.sendFile(__dirname+"/views/upload.html")
 })
 
-app.get("/uploads", expressBasicAuth({
-  users: {
-    [process.env.USERNAME]: process.env.PASSWORD
-  },
-  challenge: true,
-  unauthorizedResponse: (req) => {
-    return "Authorization is required!"
-  }
-}), async (req, res) => {
-  const resp = await b2.send(new ListObjectsCommand({
+app.get("/uploads", async (req, res) => {
+  const listObjects = await b2.listObjects({
     Bucket: "TheNest",
-    Delimiter: "/",
-  }))
-  res.send(resp.Contents)
+    Delimiter: "/"
+  }).promise()
+  res.send(listObjects.Contents)
 })
 
 
